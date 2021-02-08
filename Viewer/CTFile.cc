@@ -10,7 +10,7 @@
 
 #include "CTFile.hh"
 
-#define VOL_RENDER 1
+#define TRANSFER_FUNCTION 1
 
 namespace ct {
 
@@ -57,7 +57,7 @@ namespace ct {
 		// views.push_back(loadView(CTViewType::SIDE));
 	}
 
-#ifndef VOL_RENDER
+#ifndef TRANSFER_FUNCTION
 	// Map from the min/max of a given slice to a single byte
 	inline sf::Color CTFile::mapToPixel(sf::Int16 val) {
 		if (maxBrightness - minBrightness == 0) maxBrightness++;
@@ -83,7 +83,6 @@ namespace ct {
 			b = 255;
 			a = 204;
 		}
-
 		return sf::Color(r, g, b, a);
 	}
 #endif

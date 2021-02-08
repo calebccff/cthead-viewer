@@ -3,7 +3,6 @@
 #include <SFML/Config.hpp>
 #include <SFML/Graphics/Color.hpp>
 
-#include "Vars.h"
 namespace ct {
 
 	// Is a view a top down view, front view or side view

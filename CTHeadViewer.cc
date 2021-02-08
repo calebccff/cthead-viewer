@@ -1,6 +1,7 @@
 #include <vector>
 #include <iostream>
 
+#include "Vars.h"
 #include "CTFile.hh"
 
 #include "imgui.h"
