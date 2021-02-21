@@ -13,6 +13,8 @@
 #include <SFML/Graphics/Texture.hpp>
 #include <SFML/Graphics/Sprite.hpp>
 
+#include <SFML/OpenGL.hpp>
+
 int main(int argc, char* argv[])
 {
 	ct::CTFile* CTFile;
@@ -35,16 +37,19 @@ int main(int argc, char* argv[])
 		exit(2);
 	}
 	// Load the global pixel buf
-	CTFile = new ct::CTFile(argv[1]);
+	std::unique_ptr<ct::CTFile> file = std::unique_ptr<ct::CTFile>(ct::LoadFile(argv[1], file));
+	if (!file) {
+		std::cerr << "Failed to load file, does it exist?" << std::endl;
+		exit(1);
+	}
 
-	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer");
+	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer", sf::Style::Default, sf::ContextSettings(32));
 	window.setFramerateLimit(240);
 	ImGui::SFML::Init(window);
 
-	//topViewSprite.setPosition(200, 400);
-
 	sf::Clock deltaClock;
-	while (window.isOpen()) {
+	bool running = true;
+	while (running) {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			ImGui::SFML::ProcessEvent(event);
@@ -52,12 +57,15 @@ int main(int argc, char* argv[])
 			switch (event.type)
 			{
 			case sf::Event::Closed:
-				window.close();
+				running = false;
 				break;
 			case sf::Event::KeyReleased:
 				if (event.key.code == sf::Keyboard::Escape)
-					window.close();
+					running = false;
 				break;
+			case sf::Event::Resized:
+				// adjust the viewport when the window is resized
+				glViewport(0, 0, event.size.width, event.size.height);
 			default:
 				break;
 			}
@@ -65,6 +73,8 @@ int main(int argc, char* argv[])
 
 		ImGui::SFML::Update(window, deltaClock.restart());
 
+		//window.clear(sf::Color::Black);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		ImGui::SetNextWindowPos(ImVec2(5, 300));
 		ImGui::SetNextWindowSize(ImVec2(200, 80));
@@ -84,46 +94,35 @@ int main(int argc, char* argv[])
 		ImGui::SliderInt("Layer", &sliceSide, 1, CT_IMAGE_WIDTH);
 		ImGui::End();
 
-		ct::CTView* topView = CTFile->getView(ct::CTViewType::TOP, sliceTop-1);
+		// ct::CTView* topView = CTFile->getView(ct::CTViewType::TOP, sliceTop-1);
 
-		topViewTexture.create(topView->width, topView->height);
-		topViewTexture.update(&topView->pixBuf[0]);
-		topViewSprite.setTexture(topViewTexture);
+		// topViewTexture.create(topView->width, topView->height);
+		// topViewTexture.update(&topView->pixBuf[0]);
+		// topViewSprite.setTexture(topViewTexture);
 
-		ct::CTView* frontView = CTFile->getView(ct::CTViewType::FRONT, sliceFront-1);
+		// ct::CTView* frontView = CTFile->getView(ct::CTViewType::FRONT, sliceFront-1);
 
-		frontViewTexture.create(frontView->width, frontView->height);
-		frontViewTexture.update(&frontView->pixBuf[0]);
-		frontViewSprite.setTexture(frontViewTexture);
-		frontViewSprite.setPosition(300, 0);
-
-		ct::CTView* sideView = CTFile->getView(ct::CTViewType::SIDE, sliceSide-1);
-
-		sideViewTexture.create(sideView->width, sideView->height);
-		sideViewTexture.update(&sideView->pixBuf[0]);
-		sideViewSprite.setTexture(sideViewTexture);
-		sideViewSprite.setPosition(600, 0);
-
-		// sf::Uint8* frontViewPixels = &CTFile->getView(CT::CTViewType::FRONT)->slices.at(sliceN)->pixelBuf[0];
-
-		// frontViewTexture.create(256, 256);
-		// frontViewTexture.update(frontViewPixels);
+		// frontViewTexture.create(frontView->width, frontView->height);
+		// frontViewTexture.update(&frontView->pixBuf[0]);
 		// frontViewSprite.setTexture(frontViewTexture);
 		// frontViewSprite.setPosition(300, 0);
 
-		// sf::Uint8* sideViewPixels = &CTFile->getView(CT::CTViewType::SIDE)->slices.at(sliceN)->pixelBuf[0];
+		// ct::CTView* sideView = CTFile->getView(ct::CTViewType::SIDE, sliceSide-1);
 
-		// sideViewTexture.create(256, 256);
-		// sideViewTexture.update(sideViewPixels);
+		// sideViewTexture.create(sideView->width, sideView->height);
+		// sideViewTexture.update(&sideView->pixBuf[0]);
 		// sideViewSprite.setTexture(sideViewTexture);
 		// sideViewSprite.setPosition(600, 0);
 
-		window.clear(sf::Color::Black);
 		window.draw(topViewSprite);
 		window.draw(frontViewSprite);
 		window.draw(sideViewSprite);
 		ImGui::SFML::Render(window);
 		window.display();
+
+		delete topView;
+		delete frontView;
+		delete sideView;
 	}
 
 	ImGui::SFML::Shutdown();
