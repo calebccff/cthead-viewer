@@ -13,9 +13,16 @@ namespace ct {
 		SIDE,
 	};
 
+	enum CTRenderType {
+		SIMPLE = 0,
+		VOLREND = 1,
+	};
+
 	struct CTView {
+		enum CTViewType type;
 		sf::Int32 width;
 		sf::Int32 height;
+		sf::Int32 depth;
 
 		std::vector<sf::Uint8> pixBuf;
 	};
@@ -29,14 +36,18 @@ namespace ct {
 		short minBrightness;
 		short maxBrightness;
 
-		inline sf::Color mapToPixel(sf::Int16 val);
+		sf::Color renderSimple(sf::Int16 val);
+		sf::Color renderTF(sf::Int16 val);
+		inline sf::Color mapToPixel(CTView *view, int z, int x, int y);
 
-		struct CTView* getViewTop(size_t slice);
-		struct CTView* getViewFront(size_t slice);
-		struct CTView* getViewSide(size_t slice);
+		// struct CTView* getViewTop(size_t slice);
+		// struct CTView* getViewFront(size_t slice);
+		// struct CTView* getViewSide(size_t slice);
+		void getView_(CTView* view, size_t slice);
 
 	  public:
-		struct CTView* getView(const CTViewType view, size_t slice);
+		struct CTView* getView(const CTViewType type, size_t slice);
+		enum CTRenderType renderType;
 
 		CTFile(char* filename);
 		~CTFile();

@@ -57,15 +57,14 @@ namespace ct {
 		// views.push_back(loadView(CTViewType::SIDE));
 	}
 
-#ifndef TRANSFER_FUNCTION
 	// Map from the min/max of a given slice to a single byte
-	inline sf::Color CTFile::mapToPixel(sf::Int16 val) {
+	sf::Color CTFile::renderSimple(sf::Int16 val) {
 		if (maxBrightness - minBrightness == 0) maxBrightness++;
 		sf::Uint8 pix = (val - minBrightness) * 255 / (maxBrightness - minBrightness);
-		return Color(pix, pix, pix, 0xFF);
+		return sf::Color(pix, pix, pix, 0xFF);
 	}
-#else
-	inline sf::Color CTFile::mapToPixel(sf::Int16 val) {
+
+	sf::Color CTFile::renderTF(sf::Int16 val) {
 		sf::Uint8 r = 0, g = 0, b = 0, a = 0xFF;
 
 		if (val < -300) {
@@ -85,96 +84,196 @@ namespace ct {
 		}
 		return sf::Color(r, g, b, a);
 	}
-#endif
 
-	struct CTView* CTFile::getViewTop(size_t slice) {
-		struct CTView* view = new CTView;
-		sf::Int32 depth = CT_IMAGE_SLICES;
+	inline sf::Color CTFile::mapToPixel(CTView *view, int z, int y, int x) {
+		sf::Int16 val;
 
-		view->width = CT_IMAGE_WIDTH;
-		view->height = CT_IMAGE_HEIGHT;
-
-		for (size_t j = 0; j < view->height; j++)
+		switch (view->type)
 		{
-			for (size_t i = 0; i < view->width; i++)
-			{
-				sf::Color pix;
-				pix = mapToPixel(pixMap[slice][j][i]);
+		case FRONT:
+			val = pixMap[y][z][x];
+			break;
+		case SIDE:
+			val = pixMap[y][x][z];
+			break;
+		case TOP:
+		default:
+			val = pixMap[z][y][x];
+			break;
+		}
+		switch (renderType) {
+			case VOLREND:
+				return renderTF(val);
+			case SIMPLE:
+			default:
+				return renderSimple(val);
+		}
+	}
 
-				view->pixBuf.push_back(pix.r);
-				view->pixBuf.push_back(pix.g);
-				view->pixBuf.push_back(pix.b);
-				view->pixBuf.push_back(pix.a);
-			}
+	// struct CTView* CTFile::getViewTop(size_t slice) {
+	// 	struct CTView* view = new CTView;
+	// 	sf::Int32 depth = CT_IMAGE_SLICES;
+
+	// 	view->width = CT_IMAGE_WIDTH;
+	// 	view->height = CT_IMAGE_HEIGHT;
+
+	// 	for (size_t j = 0; j < view->height; j++)
+	// 	{
+	// 		for (size_t i = 0; i < view->width; i++)
+	// 		{
+	// 			sf::Color pix;
+	// 			pix = mapToPixel(pixMap[slice][j][i]);
+
+	// 			view->pixBuf.push_back(pix.r);
+	// 			view->pixBuf.push_back(pix.g);
+	// 			view->pixBuf.push_back(pix.b);
+	// 			view->pixBuf.push_back(pix.a);
+	// 		}
 			
-		}
+	// 	}
 
-		return view;
-	}
+	// 	return view;
+	// }
 
-	struct CTView* CTFile::getViewFront(size_t slice) {
-		struct CTView* view = new CTView;
-		sf::Int32 depth = CT_IMAGE_WIDTH;
+	// struct CTView* CTFile::getViewFront(size_t slice) {
+	// 	struct CTView* view = new CTView;
+	// 	sf::Int32 depth = CT_IMAGE_WIDTH;
 
-		view->width = CT_IMAGE_HEIGHT;
-		view->height = CT_IMAGE_SLICES;
+	// 	view->width = CT_IMAGE_HEIGHT;
+	// 	view->height = CT_IMAGE_SLICES;
 
+	// 	for (size_t j = 0; j < view->height; j++)
+	// 	{
+	// 		for (size_t i = 0; i < view->width; i++)
+	// 		{
+	// 			sf::Color pix;
+	// 			pix = mapToPixel(pixMap[j][slice][i]);
+
+	// 			view->pixBuf.push_back(pix.r);
+	// 			view->pixBuf.push_back(pix.g);
+	// 			view->pixBuf.push_back(pix.b);
+	// 			view->pixBuf.push_back(pix.a);
+	// 		}
+	// 	}
+
+	// 	return view;
+	// }
+
+	// struct CTView* CTFile::getViewSide(size_t slice) {
+	// 	struct CTView* view = new CTView;
+
+	// 	view->width = CT_IMAGE_WIDTH;
+	// 	view->height = CT_IMAGE_SLICES;
+
+	// 	for (size_t j = 0; j < view->height; j++)
+	// 	{
+	// 		for (size_t i = 0; i < view->width; i++)
+	// 		{
+	// 			sf::Color pix;
+	// 			pix = mapToPixel(pixMap[j][i][slice]);
+
+	// 			view->pixBuf.push_back(pix.r);
+	// 			view->pixBuf.push_back(pix.g);
+	// 			view->pixBuf.push_back(pix.b);
+	// 			view->pixBuf.push_back(pix.a);
+	// 		}
+	// 	}
+
+	// 	return view;
+	// }
+
+	void CTFile::getView_(CTView* view, size_t slice) {
+
+		if (renderType == VOLREND)
+			slice = 0;
+
+		// First slice also fills out the pixel buffer
 		for (size_t j = 0; j < view->height; j++)
 		{
 			for (size_t i = 0; i < view->width; i++)
 			{
 				sf::Color pix;
-				pix = mapToPixel(pixMap[j][slice][i]);
+				pix = mapToPixel(view, slice, j, i);
 
 				view->pixBuf.push_back(pix.r);
 				view->pixBuf.push_back(pix.g);
 				view->pixBuf.push_back(pix.b);
-				view->pixBuf.push_back(pix.a);
+				view->pixBuf.push_back(renderType == VOLREND ? 0x00 : pix.a);
 			}
 		}
 
-		return view;
-	}
+		if (renderType == SIMPLE)
+			return;
 
-	struct CTView* CTFile::getViewSide(size_t slice) {
-		struct CTView* view = new CTView;
-
-		view->width = CT_IMAGE_WIDTH;
-		view->height = CT_IMAGE_SLICES;
-
-		for (size_t j = 0; j < view->height; j++)
-		{
-			for (size_t i = 0; i < view->width; i++)
+		//float aaccum[view->height][view->width];
+		// We already did the first layer, start slice at 1
+		for(size_t s = 1; s < view->depth; s++) {
+			for (size_t j = 0; j < view->height; j++)
 			{
-				sf::Color pix;
-				pix = mapToPixel(pixMap[j][i][slice]);
+				for (size_t i = 0; i < view->width; i++)
+				{
+					sf::Color pix;
+					float L = 1;
+					pix = mapToPixel(view, s, j, i);
+					// if (pix.a = 0xFF)
+					// 	continue;
+					int off = j * i * 4; // Offset in pixBuf
+					// if (view->pixBuf.at(off+3) == 0 || pix.a == 0)
+					// 	continue;
 
-				view->pixBuf.push_back(pix.r);
-				view->pixBuf.push_back(pix.g);
-				view->pixBuf.push_back(pix.b);
-				view->pixBuf.push_back(pix.a);
+					// sf::Color pCol(view->pixBuf.at(off+0), view->pixBuf.at(off+1),
+					// 	view->pixBuf.at(off+2), view->pixBuf.at(off+3));
+					
+					view->pixBuf.at(off) += 
+						((1.0-view->pixBuf.at(off+3)/255.0) * (1.0 - pix.a/255.0) * L * pix.r/255.0) * 255;
+					view->pixBuf.at(off+1) += 
+						((1.0-view->pixBuf.at(off+3)/255.0) * (1.0 - pix.a/255.0) * L * pix.g/255.0) * 255;
+					view->pixBuf.at(off+2) += 
+						((1.0-view->pixBuf.at(off+3)/255.0) * (1.0 - pix.a/255.0) * L * pix.b/255.0) * 255;
+					
+					// Calculating transparency, but we need this value to represent opacity
+					// a^accum
+					view->pixBuf.at(off+3) = ((1.0 - view->pixBuf.at(off+3)/255.0)
+						* pix.a/255.0) * 255;
+					
+					// if (view->pixBuf.at(off) >100 || view->pixBuf.at(off+3) < 170) {
+					// 	std::cout << "Interesting pixel" << pix.r << " " << pix.a << std::endl;
+					// }
+				}
+				
 			}
 		}
-
-		return view;
+		
 	}
 
 	struct CTView* CTFile::getView(const CTViewType type, size_t slice) {
-		size_t width, height, depth;
+		struct CTView* view = new CTView;
+		view->type = type;
 
 		switch (type)
 		{
 			case CTViewType::TOP:
-				return getViewTop(slice);
+				view->width = CT_IMAGE_WIDTH;
+				view->height = CT_IMAGE_HEIGHT;
+				view->depth = CT_IMAGE_SLICES;
+				getView_(view, slice);
 				break;
 			case CTViewType::FRONT:
-				return getViewFront(slice);
+				view->width = CT_IMAGE_HEIGHT;
+				view->height = CT_IMAGE_SLICES;
+				view->depth = CT_IMAGE_HEIGHT;
+				getView_(view, slice);
 				break;
 			case CTViewType::SIDE:
-				return getViewSide(slice);
+				view->width = CT_IMAGE_WIDTH;
+				view->height = CT_IMAGE_SLICES;
+				view->depth = CT_IMAGE_WIDTH;
+				getView_(view, slice);
 				break;
 			default:
 			break;
-		}		
+		}
+
+		return view;
 	}
 }

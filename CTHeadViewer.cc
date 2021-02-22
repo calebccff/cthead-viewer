@@ -30,6 +30,8 @@ int main(int argc, char* argv[])
 	int sliceFront = 1;
 	int sliceSide = 1;
 
+	static int renderType;
+
 	if (argc == 1) {
 		std::cout << "Please enter the path to CTHead" << std::endl;
 		exit(2);
@@ -40,8 +42,6 @@ int main(int argc, char* argv[])
 	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer");
 	window.setFramerateLimit(240);
 	ImGui::SFML::Init(window);
-
-	//topViewSprite.setPosition(200, 400);
 
 	sf::Clock deltaClock;
 	while (window.isOpen()) {
@@ -65,24 +65,35 @@ int main(int argc, char* argv[])
 
 		ImGui::SFML::Update(window, deltaClock.restart());
 
-
-		ImGui::SetNextWindowPos(ImVec2(5, 300));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Top View");
-		ImGui::SliderInt("Layer", &sliceTop, 1, CT_IMAGE_SLICES);
+		ImGui::SetNextWindowPos(ImVec2(5, 420));
+		ImGui::SetNextWindowSize(ImVec2(400, 200));
+		ImGui::Begin("Options");
+		ImGui::Text("Render type");
+        ImGui::RadioButton("Simple Slice Render", &renderType, ct::CTRenderType::SIMPLE);
+        ImGui::RadioButton("Volume Render", &renderType, ct::CTRenderType::VOLREND);
 		ImGui::End();
 
-		ImGui::SetNextWindowPos(ImVec2(330, 150));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Front View");
-		ImGui::SliderInt("Layer", &sliceFront, 1, CT_IMAGE_HEIGHT);
-		ImGui::End();
+		CTFile->renderType = (ct::CTRenderType)renderType;
 
-		ImGui::SetNextWindowPos(ImVec2(630, 150));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Side View");
-		ImGui::SliderInt("Layer", &sliceSide, 1, CT_IMAGE_WIDTH);
-		ImGui::End();
+		if ((ct::CTRenderType)renderType == ct::CTRenderType::SIMPLE) {
+			ImGui::SetNextWindowPos(ImVec2(5, 300));
+			ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Top View");
+			ImGui::SliderInt("Layer", &sliceTop, 1, CT_IMAGE_SLICES);
+			ImGui::End();
+
+			ImGui::SetNextWindowPos(ImVec2(330, 150));
+			ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Front View");
+			ImGui::SliderInt("Layer", &sliceFront, 1, CT_IMAGE_HEIGHT);
+			ImGui::End();
+
+			ImGui::SetNextWindowPos(ImVec2(630, 150));
+			ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Side View");
+			ImGui::SliderInt("Layer", &sliceSide, 1, CT_IMAGE_WIDTH);
+			ImGui::End();
+		}
 
 		ct::CTView* topView = CTFile->getView(ct::CTViewType::TOP, sliceTop-1);
 
@@ -124,6 +135,10 @@ int main(int argc, char* argv[])
 		window.draw(sideViewSprite);
 		ImGui::SFML::Render(window);
 		window.display();
+
+		delete topView;
+		delete sideView;
+		delete frontView;
 	}
 
 	ImGui::SFML::Shutdown();
