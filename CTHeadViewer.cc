@@ -1,8 +1,10 @@
 #include <vector>
 #include <iostream>
+#include <fstream>
 
 #include "Vars.h"
-#include "CTFile.hh"
+#include "File.hh"
+#include "View.hh"
 
 #include "imgui.h"
 #include "imgui-SFML.h"
@@ -17,33 +19,40 @@
 
 int main(int argc, char* argv[])
 {
-	ct::CTFile* CTFile;
+	std::shared_ptr<ct::CTFile> file;
 
-	sf::Texture topViewTexture;
-	sf::Sprite topViewSprite;
+	auto topViewTexture = new sf::Texture;
+	auto topViewSprite = new sf::Sprite;
 
-	sf::Texture frontViewTexture;
-	sf::Sprite frontViewSprite;
+	auto frontViewTexture = new sf::Texture;
+	auto frontViewSprite = new sf::Sprite;
 
-	sf::Texture sideViewTexture;
-	sf::Sprite sideViewSprite;
+	auto sideViewTexture = new sf::Texture;
+	auto sideViewSprite = new sf::Sprite;
 
 	int sliceTop = 1;
 	int sliceFront = 1;
 	int sliceSide = 1;
+	int renderType = ct::CT_RENDER_SIMPLE;
 
 	if (argc == 1) {
 		std::cout << "Please enter the path to CTHead" << std::endl;
 		exit(2);
 	}
 	// Load the global pixel buf
-	std::unique_ptr<ct::CTFile> file = std::unique_ptr<ct::CTFile>(ct::LoadFile(argv[1], file));
-	if (!file) {
-		std::cerr << "Failed to load file, does it exist?" << std::endl;
-		exit(1);
+	try {
+		file = std::make_shared<ct::CTFile>(*ct::LoadFile(argv[1]));
+	} catch (std::runtime_error e) {
+		std::cout << "Exception reading file " << e.what() << std::endl;
+	} catch (std::fstream::failure e) {
+		std::cerr << "Exception opening/reading file: " << e.what() << std::endl;
 	}
 
-	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer", sf::Style::Default, sf::ContextSettings(32));
+	ct::TopView topView(file);
+	ct::SideView sideView(file);
+	ct::FrontView frontView(file);
+
+	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer", sf::Style::Default, sf::ContextSettings(24));
 	window.setFramerateLimit(240);
 	ImGui::SFML::Init(window);
 
@@ -76,53 +85,79 @@ int main(int argc, char* argv[])
 		//window.clear(sf::Color::Black);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		ImGui::SetNextWindowPos(ImVec2(5, 300));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Top View");
-		ImGui::SliderInt("Layer", &sliceTop, 1, CT_IMAGE_SLICES);
+		bool do_render = false;
+		auto ios = ImGui::GetIO();
+
+		// ImGui::SetNextWindowPos(ImVec2(5, 400));
+		ImGui::Begin("Info", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+		ImGui::Text("FPS: %f", ios.Framerate);
+		ImGui::Text("Render type");
+		if (ImGui::RadioButton("Simple Slice Render", &renderType, ct::CT_RENDER_SIMPLE)
+		|| ImGui::RadioButton("Volume Render", &renderType, ct::CT_RENDER_VOLUME)
+		|| ImGui::RadioButton("Simple Depth Render", &renderType, ct::CT_RENDER_DEPTH)) {
+			topView.renderType = static_cast<ct::RenderType>(renderType);
+			sideView.renderType = static_cast<ct::RenderType>(renderType);
+			frontView.renderType = static_cast<ct::RenderType>(renderType);
+			do_render = true;
+		}
+		if (renderType == ct::CT_RENDER_VOLUME) {
+			if (ImGui::SliderInt("Skin Opacity", &file->skin_opacity, 0, 100)
+			|| ImGui::SliderInt("Light Brightness", &file->lighting, 0, 100)) {
+				do_render = true;
+			}
+		}
 		ImGui::End();
 
-		ImGui::SetNextWindowPos(ImVec2(330, 150));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Front View");
-		ImGui::SliderInt("Layer", &sliceFront, 1, CT_IMAGE_HEIGHT);
-		ImGui::End();
+		if (topView.renderType == ct::CT_RENDER_SIMPLE) {
+			// ImGui::SetNextWindowPos(ImVec2(5, 300));
+			// ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Top View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+			if (ImGui::SliderInt("Slice", &sliceTop, 1, CT_IMAGE_SLICES))
+				do_render = true;
+			ImGui::End();
+		}
 
-		ImGui::SetNextWindowPos(ImVec2(630, 150));
-		ImGui::SetNextWindowSize(ImVec2(200, 80));
-		ImGui::Begin("Side View");
-		ImGui::SliderInt("Layer", &sliceSide, 1, CT_IMAGE_WIDTH);
-		ImGui::End();
+		if (sideView.renderType == ct::CT_RENDER_SIMPLE) {
+			// ImGui::SetNextWindowPos(ImVec2(330, 150));
+			// ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Side View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+			if (ImGui::SliderInt("Slice", &sliceSide, 1, CT_IMAGE_WIDTH))
+				do_render = true;
+			ImGui::End();
+		}
 
-		// ct::CTView* topView = CTFile->getView(ct::CTViewType::TOP, sliceTop-1);
+		if (frontView.renderType == ct::CT_RENDER_SIMPLE) {
+			// ImGui::SetNextWindowPos(ImVec2(630, 150));
+			// ImGui::SetNextWindowSize(ImVec2(200, 80));
+			ImGui::Begin("Front View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+			if (ImGui::SliderInt("Slice", &sliceFront, 1, CT_IMAGE_HEIGHT))
+				do_render = true;
+			ImGui::End();
+		}
 
-		// topViewTexture.create(topView->width, topView->height);
-		// topViewTexture.update(&topView->pixBuf[0]);
-		// topViewSprite.setTexture(topViewTexture);
+		if (do_render) {
+			topView.slice(sliceTop);
+			topView.doRender(topViewTexture);
+			topViewSprite->setTexture(*topViewTexture);
+			topViewSprite->setPosition(30, 30);
+			
 
-		// ct::CTView* frontView = CTFile->getView(ct::CTViewType::FRONT, sliceFront-1);
+			sideView.slice(sliceSide);
+			sideView.doRender(sideViewTexture);
+			sideViewSprite->setTexture(*sideViewTexture);
+			sideViewSprite->setPosition(330, 30);
 
-		// frontViewTexture.create(frontView->width, frontView->height);
-		// frontViewTexture.update(&frontView->pixBuf[0]);
-		// frontViewSprite.setTexture(frontViewTexture);
-		// frontViewSprite.setPosition(300, 0);
+			frontView.slice(sliceFront);
+			frontView.doRender(frontViewTexture);
+			frontViewSprite->setTexture(*frontViewTexture);
+			frontViewSprite->setPosition(660, 30);
+		}
 
-		// ct::CTView* sideView = CTFile->getView(ct::CTViewType::SIDE, sliceSide-1);
-
-		// sideViewTexture.create(sideView->width, sideView->height);
-		// sideViewTexture.update(&sideView->pixBuf[0]);
-		// sideViewSprite.setTexture(sideViewTexture);
-		// sideViewSprite.setPosition(600, 0);
-
-		window.draw(topViewSprite);
-		window.draw(frontViewSprite);
-		window.draw(sideViewSprite);
+		window.draw(*topViewSprite);
+		window.draw(*frontViewSprite);
+		window.draw(*sideViewSprite);
 		ImGui::SFML::Render(window);
 		window.display();
-
-		delete topView;
-		delete frontView;
-		delete sideView;
 	}
 
 	ImGui::SFML::Shutdown();

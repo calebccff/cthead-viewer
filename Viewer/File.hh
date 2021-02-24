@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 
 #include <SFML/Config.hpp>
 #include <SFML/Graphics/Color.hpp>
@@ -10,9 +11,11 @@ namespace ct {
 	struct CTFile {
 		short minBrightness;
 		short maxBrightness;
+		int lighting = 99;
+		int skin_opacity = 30;
 
-		short pixMap[CT_IMAGE_SLICES][CT_IMAGE_HEIGHT][CT_IMAGE_WIDTH]; // z/x/y
+		short pixMap[CT_IMAGE_SLICES][CT_IMAGE_HEIGHT][CT_IMAGE_WIDTH]; // z/y/x
 	};
 
-	CTFile* LoadFile(char* filename, std::unique_ptr<CTFile> const &data);
+	CTFile* LoadFile(char* filename);
 }

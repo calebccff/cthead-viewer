@@ -8,7 +8,7 @@
 #include <SFML/Config.hpp>
 #include <SFML/Graphics/Color.hpp>
 
-#include "CTFile.hh"
+#include "File.hh"
 
 #define TRANSFER_FUNCTION 1
 
@@ -21,10 +21,8 @@ namespace ct {
 		data->minBrightness = SHRT_MAX;
 		data->maxBrightness = SHRT_MIN;
 
+		file.exceptions ( std::ifstream::failbit | std::ifstream::badbit );
 		file.open(filename, std::ios::binary | std::ios::in);
-		if (file.fail()) {
-			return nullptr;
-		}
 
 		for(k = 0; k < CT_IMAGE_SLICES; k++) {
 			for(j = 0; j < CT_IMAGE_HEIGHT; j++) {
@@ -35,11 +33,14 @@ namespace ct {
 					if (pixel < data->minBrightness) data->minBrightness = pixel;
 					if (pixel > data->maxBrightness) data->maxBrightness = pixel;
 
-					data->pixMap[k][j][i] = pixel << 8 & pixel >> 8;
+					data->pixMap[k][j][i] = pixel;
 				}
 			}
 		}
 		file.close();
+
+		if (data->maxBrightness - data->minBrightness == 0)
+			throw std::runtime_error("min and max brightness are the same");
 
 		return data;
 	}

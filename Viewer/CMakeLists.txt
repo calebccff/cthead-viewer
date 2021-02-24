@@ -1,5 +1,6 @@
 add_library (Viewer 
-  CTFile.cc
-  CTFile.hh)
+  File.cc
+  View.cc
+  View_renderFuncs.cc)
 
 install (TARGETS Viewer DESTINATION bin)
