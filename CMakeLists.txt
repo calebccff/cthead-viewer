@@ -5,6 +5,9 @@ project (CTHeadViewer)
 set (CTHeadViewer_VERSION_MAJOR 1)
 set (CTHeadViewer_VERSION_MINOR 0)
 
+find_package(ImGui-SFML REQUIRED)
+find_package (Eigen3 3.3 CONFIG REQUIRED) # NO MODULE
+
 set (CMAKE_CXX_STANDARD 17)
 
 find_package(OpenMP)
@@ -15,14 +18,22 @@ if (OPENMP_FOUND)
 endif()
 
 #include the subdirectory containing our libs
-add_subdirectory (Viewer)
 include_directories(Viewer)
+include_directories(Window)
+
+set(Viewer_Files Viewer/File.cc
+    Viewer/View.cc
+    Viewer/View_renderFuncs.cc)
+
+set(Window_Files Window/Window.cc)
+
 #indicate the entry point for the executable
-add_executable (CTHeadViewer Viewer CTHeadViewer.cc)
+add_executable (CTHeadViewer
+    CTHeadViewer.cc
+    ${Viewer_Files}
+    ${Window_Files})
 
 # Indicate which libraries to include during the link process.
-target_link_libraries (CTHeadViewer PRIVATE Viewer ImGui-SFML::ImGui-SFML)
-
-find_package(ImGui-SFML REQUIRED)
+target_link_libraries (CTHeadViewer ImGui-SFML::ImGui-SFML Eigen3::Eigen)
 
 install (TARGETS CTHeadViewer DESTINATION bin)

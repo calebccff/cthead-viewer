@@ -30,6 +30,7 @@ namespace ct {
 					sf::Int16 pixel;
 
 					file.read((char* )&pixel, sizeof(short));
+
 					if (pixel < data->minBrightness) data->minBrightness = pixel;
 					if (pixel > data->maxBrightness) data->maxBrightness = pixel;
 

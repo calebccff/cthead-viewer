@@ -6,6 +6,8 @@
 #include "File.hh"
 #include "View.hh"
 
+#include "Window.hh"
+
 #include "imgui.h"
 #include "imgui-SFML.h"
 
@@ -19,21 +21,7 @@
 
 int main(int argc, char* argv[])
 {
-	std::shared_ptr<ct::CTFile> file;
-
-	auto topViewTexture = new sf::Texture;
-	auto topViewSprite = new sf::Sprite;
-
-	auto frontViewTexture = new sf::Texture;
-	auto frontViewSprite = new sf::Sprite;
-
-	auto sideViewTexture = new sf::Texture;
-	auto sideViewSprite = new sf::Sprite;
-
-	int sliceTop = 1;
-	int sliceFront = 1;
-	int sliceSide = 1;
-	int renderType = ct::CT_RENDER_SIMPLE;
+	auto w = new ct::Window;
 
 	if (argc == 1) {
 		std::cout << "Please enter the path to CTHead" << std::endl;
@@ -41,26 +29,27 @@ int main(int argc, char* argv[])
 	}
 	// Load the global pixel buf
 	try {
-		file = std::make_shared<ct::CTFile>(*ct::LoadFile(argv[1]));
-	} catch (std::runtime_error e) {
-		std::cout << "Exception reading file " << e.what() << std::endl;
+		w->file = std::make_shared<ct::CTFile>(*ct::LoadFile(argv[1]));
 	} catch (std::fstream::failure e) {
 		std::cerr << "Exception opening/reading file: " << e.what() << std::endl;
+	} catch (std::runtime_error e) {
+		std::cout << "Exception reading file " << e.what() << std::endl;
 	}
 
-	ct::TopView topView(file);
-	ct::SideView sideView(file);
-	ct::FrontView frontView(file);
+	std::cout << "Min: " << w->file->minBrightness << " Max: " << w->file->maxBrightness << std::endl;
 
-	sf::RenderWindow window(sf::VideoMode(1200, 800), "CTHead Viewer", sf::Style::Default, sf::ContextSettings(24));
-	window.setFramerateLimit(240);
-	ImGui::SFML::Init(window);
+	w->renderType = ct::CT_RENDER_SIMPLE;
+
+	w->window = std::make_unique<sf::RenderWindow>(sf::VideoMode(1200, 800), "CTHead Viewer", sf::Style::Default, sf::ContextSettings(24));
+	glEnable(GL_TEXTURE_2D);
+	w->window->setFramerateLimit(240);
+	ImGui::SFML::Init(*w->window);
 
 	sf::Clock deltaClock;
 	bool running = true;
 	while (running) {
 		sf::Event event;
-		while (window.pollEvent(event)) {
+		while (w->window->pollEvent(event)) {
 			ImGui::SFML::ProcessEvent(event);
 
 			switch (event.type)
@@ -80,84 +69,76 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		ImGui::SFML::Update(window, deltaClock.restart());
+		ImGui::SFML::Update(*w->window, deltaClock.restart());
 
 		//window.clear(sf::Color::Black);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		bool do_render = false;
 		auto ios = ImGui::GetIO();
+		w->do_render = false;
 
 		// ImGui::SetNextWindowPos(ImVec2(5, 400));
 		ImGui::Begin("Info", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 		ImGui::Text("FPS: %f", ios.Framerate);
 		ImGui::Text("Render type");
-		if (ImGui::RadioButton("Simple Slice Render", &renderType, ct::CT_RENDER_SIMPLE)
-		|| ImGui::RadioButton("Volume Render", &renderType, ct::CT_RENDER_VOLUME)
-		|| ImGui::RadioButton("Simple Depth Render", &renderType, ct::CT_RENDER_DEPTH)) {
-			topView.renderType = static_cast<ct::RenderType>(renderType);
-			sideView.renderType = static_cast<ct::RenderType>(renderType);
-			frontView.renderType = static_cast<ct::RenderType>(renderType);
-			do_render = true;
+		int rt = static_cast<int>(w->renderType);
+		if (ImGui::RadioButton("Simple Slice Render", &rt, ct::CT_RENDER_SIMPLE)
+		|| ImGui::RadioButton("Volume Render", &rt, ct::CT_RENDER_VOLUME)
+		|| ImGui::RadioButton("Simple Depth Render", &rt, ct::CT_RENDER_DEPTH)
+		|| ImGui::RadioButton("3D Render", &rt, ct::CT_RENDER_3D)) {
+			w->renderType = static_cast<ct::RenderType>(rt);
+			w->do_render = true;
 		}
-		if (renderType == ct::CT_RENDER_VOLUME) {
-			if (ImGui::SliderInt("Skin Opacity", &file->skin_opacity, 0, 100)
-			|| ImGui::SliderInt("Light Brightness", &file->lighting, 0, 100)) {
-				do_render = true;
-			}
+		switch(w->renderType) {
+			case ct::CT_RENDER_3D:
+				if (ImGui::SliderInt("Cam rot X", &w->file->camRotX, 0, 360))
+					w->do_render = true;
+				if (ImGui::SliderInt("Cam rot Y", &w->file->camRotY, 0, 360))
+					w->do_render = true;
+				if (ImGui::SliderInt("Cam rot Z", &w->file->camRotZ, 0, 360))
+					w->do_render = true;
+				if (ImGui::SliderFloat("Field of View", &w->fov, 0.0, 180.0))
+					w->do_render = true;
+			case ct::CT_RENDER_VOLUME:
+				if (ImGui::SliderInt("Skin Opacity", &w->file->skin_opacity, 0, 100))
+					w->do_render = true;
+				if (ImGui::SliderInt("Light Brightness", &w->file->lighting, 0, 100))
+					w->do_render = true;
+				break;
+			default:
+				break;
 		}
 		ImGui::End();
 
-		if (topView.renderType == ct::CT_RENDER_SIMPLE) {
-			// ImGui::SetNextWindowPos(ImVec2(5, 300));
-			// ImGui::SetNextWindowSize(ImVec2(200, 80));
-			ImGui::Begin("Top View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
-			if (ImGui::SliderInt("Slice", &sliceTop, 1, CT_IMAGE_SLICES))
-				do_render = true;
-			ImGui::End();
+		switch (w->renderType)
+		{
+		case ct::CT_RENDER_SIMPLE:
+		case ct::CT_RENDER_VOLUME:
+		case ct::CT_RENDER_DEPTH:
+			ct::renderQ2(w);
+			break;
+		case ct::CT_RENDER_3D:
+			ct::renderQ3(w);
+			break;
+		default:
+			break;
 		}
 
-		if (sideView.renderType == ct::CT_RENDER_SIMPLE) {
-			// ImGui::SetNextWindowPos(ImVec2(330, 150));
-			// ImGui::SetNextWindowSize(ImVec2(200, 80));
-			ImGui::Begin("Side View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
-			if (ImGui::SliderInt("Slice", &sliceSide, 1, CT_IMAGE_WIDTH))
-				do_render = true;
-			ImGui::End();
-		}
+/*
 
-		if (frontView.renderType == ct::CT_RENDER_SIMPLE) {
-			// ImGui::SetNextWindowPos(ImVec2(630, 150));
-			// ImGui::SetNextWindowSize(ImVec2(200, 80));
-			ImGui::Begin("Front View", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
-			if (ImGui::SliderInt("Slice", &sliceFront, 1, CT_IMAGE_HEIGHT))
-				do_render = true;
-			ImGui::End();
-		}
+TODO: 3D render with textures
+https://www.codeproject.com/Articles/352270/Getting-Started-with-Volume-Rendering-using-OpenGL
 
-		if (do_render) {
-			topView.slice(sliceTop);
-			topView.doRender(topViewTexture);
-			topViewSprite->setTexture(*topViewTexture);
-			topViewSprite->setPosition(30, 30);
-			
+== Render Pipeline
+ - Generate 2D textures (based on simple render or TF)
+ - For each slice, generate quads with the texture, support alpha
 
-			sideView.slice(sliceSide);
-			sideView.doRender(sideViewTexture);
-			sideViewSprite->setTexture(*sideViewTexture);
-			sideViewSprite->setPosition(330, 30);
+*/
 
-			frontView.slice(sliceFront);
-			frontView.doRender(frontViewTexture);
-			frontViewSprite->setTexture(*frontViewTexture);
-			frontViewSprite->setPosition(660, 30);
-		}
+		ImGui::SFML::Render(*w->window);
+		w->window->display();
 
-		window.draw(*topViewSprite);
-		window.draw(*frontViewSprite);
-		window.draw(*sideViewSprite);
-		ImGui::SFML::Render(window);
-		window.display();
+		w->frameCount++;
 	}
 
 	ImGui::SFML::Shutdown();

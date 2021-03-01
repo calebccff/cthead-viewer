@@ -14,6 +14,10 @@ namespace ct {
 		int lighting = 99;
 		int skin_opacity = 30;
 
+		int camRotX = 128;
+		int camRotY = 128;
+		int camRotZ = 128;
+
 		short pixMap[CT_IMAGE_SLICES][CT_IMAGE_HEIGHT][CT_IMAGE_WIDTH]; // z/y/x
 	};
 
