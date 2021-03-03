@@ -9,6 +9,7 @@ find_package(ImGui-SFML REQUIRED)
 find_package (Eigen3 3.3 CONFIG REQUIRED) # NO MODULE
 
 set (CMAKE_CXX_STANDARD 17)
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
 
 find_package(OpenMP)
 if (OPENMP_FOUND)

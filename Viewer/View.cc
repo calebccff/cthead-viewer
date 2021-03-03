@@ -116,8 +116,8 @@ inline Eigen::Vector3f vectorFromAngle(float yaw, float pitch) {
 	return Eigen::Vector3f {x, y, z}.normalized();
 }
 
-Eigen::Matrix<float,3,3> yawPitchRotMatrix(float yaw, float pitch) {
-	Eigen::Matrix<float,3,3> yawMat, pitchMat;
+Eigen::Matrix<float,4,4> yawPitchRotMatrix(float yaw, float pitch) {
+	Eigen::Matrix<float,4,4> yawMat, pitchMat;
 	yawMat << cos(yaw), -sin(yaw), 0,
 			  sin(yaw), cos(yaw),  0,
 			  0,        0,         1;
@@ -160,12 +160,12 @@ sf::Sprite RayView::doRender3() {
 	auto fov = win->fov * M_PI/180.0;
 	auto pixBuf = new sf::Uint8[width*height*4];
 	const auto target = Eigen::Vector3f {width/2.0, height/2.0, slices/2.0};
-	const auto camRadius = sqrt(height*height * 2);
+	const auto camRadius = 500;
 	Eigen::Vector3f camDir;
 	// camDir = euler2Quaternion(0, win->file->camRotY * M_PI/180.0,
 	//  		win->file->camRotX * M_PI/180.0).vec().normalized();
-	camDir = vectorFromAngle(win->file->camRotY * M_PI/180.0,
-			win->file->camRotX * M_PI/180.0);
+	camDir = vectorFromAngle(-180+win->file->camRotY * M_PI/180.0,
+			180-win->file->camRotX * M_PI/180.0);
 	const auto camFace = (target + camDir * camRadius);
 	printf("Camera Pos: x: %f y: %f z: %f\n", camFace[0], camFace[1], camFace[2]);
 	printf("Camera Dir: x: %f y: %f z: %f\n\n", camDir[0], camDir[1], camDir[2]);
@@ -176,10 +176,10 @@ sf::Sprite RayView::doRender3() {
 #pragma omp parallel for
 		for (size_t x = 0; x < width; x++)
 		{
-			const auto L = win->file->lighting / 100.0 ;
+			const auto L = 0.995;//win->file->lighting / 100.0 ;
 			std::array<double, 4> pix{0, 0, 0, L};
-//#pragma omp parallel for
-			for(size_t z = 0; z < camRadius; z++) {
+#pragma omp parallel for
+			for(size_t z = 0; z < camRadius*2; z++) {
 				const auto stepAngleX = map(x, 0, width, -fov/2.0, fov/2.0);
 				const auto stepAngleY = map(y, 0, height, -fov/2.0, fov/2.0);
 
@@ -187,15 +187,6 @@ sf::Sprite RayView::doRender3() {
 				Eigen::Vector3f step;
 				step = euler2Quaternion(0, stepAngleY, stepAngleX) * camDir;
 				step *= sqrt(x*x + y*y + z*z);
-
-				//const Eigen::Quaternionf p = euler2Quaternion(0, stepAngleY, stepAngleX);
-				// p.matrix() = yawPitchRotMatrix(stepAngleX, stepAngleY);
-
-				// Eigen::Vector3f step = camDir * sqrt(x*x + y*y + z*z);
-				// step.dot(p.vec());
-
-				// Eigen::Vector3f step = (euler2Quaternion(0, stepAngleY, stepAngleX)
-				// 	* camDir) * Q_rsqrt(x*x + y*y + z*z);
 
 				// The rayposition is the edge of the arcball - the step direction * the depth
 				Eigen::Vector3f rayPos = camFace - step;

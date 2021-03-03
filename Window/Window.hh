@@ -27,7 +27,7 @@ struct Window {
 
 	// Field of View for 3D render
 	// in degrees
-	float fov = 60;
+	float fov = 40;
 };
 
 void renderQ2(ct::Window *w);
