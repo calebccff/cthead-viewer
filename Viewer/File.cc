@@ -16,7 +16,7 @@ namespace ct {
 	CTFile* LoadFile(char* filename) {
 		std::ifstream file;
 		int i = 0, j = 0, k = 0;
-		CTFile *data = (CTFile*)malloc(sizeof(CTFile));
+		auto data = new CTFile;
 
 		data->minBrightness = SHRT_MAX;
 		data->maxBrightness = SHRT_MIN;

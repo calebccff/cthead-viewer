@@ -60,6 +60,6 @@ namespace ct {
 	  public:
 		RayView(Window *w);
 		sf::Vector3i get_coord(int z, int y, int x) override;
-		sf::Sprite doRender3(Eigen::Vector3f pos);
+		sf::Sprite doRender3();
 	};
 }

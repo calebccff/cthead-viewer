@@ -66,13 +66,9 @@ void renderQ3(ct::Window *w)
 	static auto rayView = new ct::RayView(w);
 	static sf::Sprite sprite;
 
-	const auto pos = Eigen::Vector3f
-		{static_cast<float>(w->file->camPosX),
-		static_cast<float>(w->file->camPosY),
-		static_cast<float>(w->file->camPosZ)};
-
 	if (w->do_render) {
-		sprite = rayView->doRender3(pos);
+		sprite = rayView->doRender3();
+		sprite.setPosition(30, 30);
 	}
 	w->window->draw(sprite);
 }

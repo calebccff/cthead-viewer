@@ -95,8 +95,6 @@ int main(int argc, char* argv[])
 					w->do_render = true;
 				if (ImGui::SliderInt("Cam rot Y", &w->file->camRotY, 0, 360))
 					w->do_render = true;
-				if (ImGui::SliderInt("Cam rot Z", &w->file->camRotZ, 0, 360))
-					w->do_render = true;
 				if (ImGui::SliderFloat("Field of View", &w->fov, 0.0, 180.0))
 					w->do_render = true;
 			case ct::CT_RENDER_VOLUME:

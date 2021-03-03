@@ -11,5 +11,6 @@ enum CTViewType {
 };
 
 inline float map(float val, float oldmin, float oldmax, float newmin, float newmax) {
-	return (val - oldmin) / oldmax * newmax + newmin;
+	return newmin + ((newmax - newmin) / (oldmax - oldmin) * (val - oldmin));
+	//return (val - oldmin) / oldmax * newmax + newmin;
 }
